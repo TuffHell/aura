@@ -1,0 +1,22 @@
+# environments & caches
+.venv/
+node_modules/
+.npmcache/
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+
+# secrets
+.env
+
+# build artifacts & renders (large; rebuilt from source)
+out/
+experience/_build/
+experience/_build_vid/
+experience/_shots/
+film/_build/
+talk/_shots/
+
+# local voice models (fetched at deploy time, see talk/Dockerfile)
+talk/voices/

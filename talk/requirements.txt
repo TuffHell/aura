@@ -1,0 +1,6 @@
+# AURA talk — full server dependencies (local venv + cloud container)
+fastapi>=0.115
+uvicorn[standard]>=0.30
+anthropic>=0.69            # cloud "brain" (set ANTHROPIC_API_KEY)
+faster-whisper>=1.1        # speech-to-text (runs in-container, CPU)
+piper-tts>=1.2             # natural neural voice (runs in-container, CPU)

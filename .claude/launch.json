@@ -1,0 +1,32 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "aura",
+      "runtimeExecutable": ".venv/bin/streamlit",
+      "runtimeArgs": [
+        "run",
+        "app/streamlit_app.py",
+        "--server.headless",
+        "true",
+        "--server.port",
+        "8533",
+        "--server.runOnSave",
+        "false"
+      ],
+      "port": 8533
+    },
+    {
+      "name": "aura-xp",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8534",
+        "--directory",
+        "experience"
+      ],
+      "port": 8534
+    }
+  ]
+}

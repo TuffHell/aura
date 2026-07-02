@@ -1,0 +1,28 @@
+# Run AURA talk in Docker.
+#   Cloud-brain (recommended): set ANTHROPIC_API_KEY, then `docker compose up`.
+#   Open-models: leave the key blank, uncomment the ollama bits below, then
+#   `docker compose --profile open up` and `docker compose exec ollama ollama pull qwen2.5:7b`.
+services:
+  aura:
+    build: .
+    ports:
+      - "8600:8600"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - AURA_MODEL=${AURA_MODEL:-claude-haiku-4-5}
+      # --- open-models brain (instead of Claude): leave ANTHROPIC_API_KEY blank ---
+      # - AURA_OLLAMA_URL=http://ollama:11434
+      # - AURA_OLLAMA_MODEL=qwen2.5:7b
+    restart: unless-stopped
+
+  # Open-models brain. Needs a big-RAM / GPU host to be usable. Enable with:
+  #   docker compose --profile open up
+  ollama:
+    image: ollama/ollama
+    profiles: ["open"]
+    volumes:
+      - ollama:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  ollama:

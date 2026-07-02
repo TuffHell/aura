@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>AURA — a place to be held</title>
+<style>
+  :root {
+    --teal: #1D9E75;
+    --coral: #D85A30;
+    --amber: #E0A23A;
+    --ink: #ECEAE2;
+    --muted: #9b988f;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; background: #07070a; }
+  body {
+    font-family: "Avenir Next", "Helvetica Neue", system-ui, sans-serif;
+    color: var(--ink); -webkit-font-smoothing: antialiased;
+    user-select: none; cursor: default;
+  }
+  #scene { position: fixed; inset: 0; display: block; }
+
+  /* --- corner chrome (ghosted) --- */
+  .corner { position: fixed; z-index: 20; font-size: 13px; letter-spacing: .14em;
+            color: var(--muted); opacity: .7; }
+  #clock { top: 22px; left: 26px; font-variant-numeric: tabular-nums; }
+  #clock .moon { opacity: .8; }
+  .tr { top: 20px; right: 24px; display: flex; gap: 14px; }
+  .ghost { background: none; border: 1px solid #2b2b32; color: var(--muted);
+           border-radius: 999px; padding: 5px 12px; font: inherit; font-size: 12px;
+           letter-spacing: .12em; cursor: pointer; transition: .25s; opacity: .85;
+           text-decoration: none; display: inline-block; }
+  .ghost:hover { color: var(--ink); border-color: var(--teal); }
+  #replay { display: none; }
+
+  /* --- caption (AURA's words) --- */
+  #caption { position: fixed; left: 50%; bottom: 8%; transform: translateX(-50%);
+             width: min(720px, 84vw); text-align: center; z-index: 15;
+             opacity: 0; transition: opacity 1s ease; pointer-events: none; }
+  #caption .who { font-size: 12px; letter-spacing: .22em; color: var(--teal);
+                  text-transform: uppercase; opacity: .85; }
+  #caption.elena .who { color: var(--coral); }
+  #caption .words { margin-top: 10px; font-family: Georgia, "Times New Roman", serif;
+                    font-size: clamp(20px, 2.6vw, 30px); line-height: 1.5; font-style: italic;
+                    color: var(--ink); text-shadow: 0 2px 30px rgba(0,0,0,.8); }
+
+  /* --- breathing pacer --- */
+  #pacer { position: fixed; left: 50%; top: 60%; transform: translate(-50%,-50%);
+           z-index: 12; width: 300px; height: 300px; pointer-events: none;
+           opacity: 0; transition: opacity 1.4s ease; display: grid; place-items: center; }
+  #ring { width: 120px; height: 120px; border-radius: 50%;
+          border: 1.5px solid rgba(236,234,226,.55);
+          box-shadow: 0 0 60px -10px var(--teal), inset 0 0 40px -16px var(--teal);
+          will-change: transform; }
+  #breathText { position: absolute; font-size: 13px; letter-spacing: .3em;
+                text-transform: uppercase; color: var(--ink); opacity: .8; }
+  #instruction { position: fixed; left: 50%; top: 7%; transform: translateX(-50%);
+                 z-index: 13; width: min(620px, 86vw); text-align: center;
+                 font-size: clamp(14px, 1.6vw, 17px); color: rgba(236,234,226,.9);
+                 letter-spacing: .04em; font-style: italic; opacity: 0;
+                 transition: opacity 1.2s ease;
+                 text-shadow: 0 1px 18px rgba(0,0,0,.95), 0 0 4px rgba(0,0,0,.8); }
+
+  /* whisper of the physiology, not a dashboard */
+  #whisper { position: fixed; right: 26px; bottom: 26px; z-index: 12; text-align: right;
+             font-size: 12px; letter-spacing: .12em; color: var(--muted); opacity: 0;
+             transition: opacity 1s ease; font-variant-numeric: tabular-nums; }
+
+  /* --- intro veil --- */
+  #veil { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center;
+          background: radial-gradient(circle at 50% 45%, rgba(20,16,12,.55), rgba(7,7,10,.96));
+          backdrop-filter: blur(3px); transition: opacity 1.6s ease; }
+  #veil.gone { opacity: 0; pointer-events: none; }
+  .intro { text-align: center; max-width: 560px; padding: 0 24px; }
+  .intro h1 { font-weight: 500; letter-spacing: .42em; font-size: clamp(34px, 6vw, 60px);
+              color: var(--teal); margin-bottom: 8px; }
+  .intro .sub { color: var(--muted); font-size: clamp(14px, 2vw, 18px);
+                letter-spacing: .04em; font-family: Georgia, serif; font-style: italic; }
+  .intro .ctx { color: #6f6d66; font-size: 13px; margin-top: 18px; letter-spacing: .03em; line-height: 1.6; }
+  #begin { margin-top: 38px; background: none; color: var(--ink);
+           border: 1px solid var(--teal); border-radius: 999px;
+           padding: 14px 38px; font: inherit; font-size: 15px; letter-spacing: .16em;
+           text-transform: uppercase; cursor: pointer; position: relative;
+           animation: pulse 5.2s ease-in-out infinite; transition: background .3s, color .3s; }
+  #begin:hover { background: var(--teal); color: #04130d; }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(29,158,117,.0);}
+                     50% { box-shadow: 0 0 50px -6px rgba(29,158,117,.6);} }
+  .hint { margin-top: 22px; color: #57554f; font-size: 12px; letter-spacing: .1em; }
+</style>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+
+  <div id="clock" class="corner"><span class="moon">🌙</span> <span id="clockT">22:13</span> · home alone</div>
+  <div class="tr corner">
+    <a class="ghost" href="engineering.html">ENGINEERING</a>
+    <button id="sound" class="ghost">SOUND: ON</button>
+    <button id="replay" class="ghost">↺ REPLAY</button>
+  </div>
+
+  <div id="pacer"><div id="ring"></div><div id="breathText"></div></div>
+  <div id="instruction"></div>
+  <div id="whisper"></div>
+
+  <div id="caption"><div class="who"></div><div class="words"></div></div>
+
+  <div id="veil">
+    <div class="intro">
+      <h1>AURA</h1>
+      <div class="sub">a place to be held</div>
+      <div class="ctx">Day 6 after the ICU. Elena is home alone, a low fever rising,
+        the fear that the sepsis is returning. This is not a chart. It is the few
+        minutes where a soft, breathing body checks her over, gives the evening dose,
+        alerts her night nurse — then holds her, and helps her come back down.</div>
+      <button id="begin">Begin</button>
+      <div class="hint">use sound on · breathe along when the light appears</div>
+    </div>
+  </div>
+
+  <script src="vendor/three.min.js"></script>
+  <script src="phases.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

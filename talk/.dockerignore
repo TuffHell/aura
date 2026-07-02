@@ -1,0 +1,14 @@
+# keep the image lean — exclude dev/QA artifacts (but NOT voices/, which is baked in)
+__pycache__/
+*.pyc
+.DS_Store
+.env
+_shots/
+_build/
+_build_vid/
+_shot.js
+_record.js
+_narrate.js
+tests/
+node_modules/
+*.log

@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AURA — engineering the real thing</title>
+<meta name="description" content="The physical requirements to build AURA for real: soft-body structure, force budgets, contactless vitals sensing, care effectors, power, and the safety case." />
+<style>
+  :root {
+    --teal: #1D9E75;
+    --teal-soft: #2fae84;
+    --coral: #D85A30;
+    --amber: #E0A23A;
+    --ink: #ECEAE2;
+    --muted: #9b988f;
+    --faint: #6f6d66;
+    --line: #24242b;
+    --bg: #07070a;
+    --panel: #0d0d12;
+    --panel-2: #101017;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background:
+      radial-gradient(1200px 600px at 70% -10%, rgba(29,158,117,.07), transparent 60%),
+      radial-gradient(900px 500px at 10% 30%, rgba(216,90,48,.05), transparent 60%),
+      var(--bg);
+    color: var(--ink);
+    font-family: "Avenir Next", "Helvetica Neue", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.65;
+  }
+  a { color: var(--teal-soft); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 clamp(18px, 4vw, 40px); }
+
+  /* ---- masthead ---- */
+  header.mast { padding: 26px 0 0; display: flex; justify-content: space-between; align-items: center; }
+  .brand { letter-spacing: .38em; color: var(--teal); font-size: 15px; }
+  .back { border: 1px solid #2b2b32; border-radius: 999px; padding: 6px 14px;
+          font-size: 12px; letter-spacing: .12em; color: var(--muted); transition: .25s; }
+  .back:hover { color: var(--ink); border-color: var(--teal); text-decoration: none; }
+
+  /* ---- hero ---- */
+  .hero { padding: clamp(48px, 9vw, 110px) 0 clamp(28px, 5vw, 60px); }
+  .kicker { font-size: 12px; letter-spacing: .3em; text-transform: uppercase; color: var(--amber); }
+  h1 { font-family: Georgia, "Times New Roman", serif; font-weight: 500; font-style: italic;
+       font-size: clamp(34px, 6.5vw, 68px); line-height: 1.12; margin-top: 14px; max-width: 18ch; }
+  h1 em { color: var(--teal-soft); font-style: italic; }
+  .lede { margin-top: 22px; max-width: 62ch; color: var(--muted); font-size: clamp(15px, 1.8vw, 17.5px); }
+  .lede strong { color: var(--ink); font-weight: 500; }
+
+  /* ---- sections ---- */
+  section { padding: clamp(34px, 6vw, 72px) 0; border-top: 1px solid var(--line); }
+  .sec-head { display: flex; align-items: baseline; gap: 16px; margin-bottom: 8px; }
+  .sec-no { font-variant-numeric: tabular-nums; color: var(--teal-soft); font-size: 13px; letter-spacing: .22em; }
+  h2 { font-family: Georgia, serif; font-weight: 500; font-size: clamp(23px, 3.4vw, 34px); }
+  .sec-sub { color: var(--faint); font-size: 14px; max-width: 68ch; margin-bottom: 26px; }
+
+  p.body { max-width: 70ch; color: var(--muted); margin: 12px 0; }
+  p.body strong { color: var(--ink); font-weight: 500; }
+
+  /* ---- figure ---- */
+  .figure { display: grid; grid-template-columns: minmax(240px, 420px) 1fr; gap: clamp(20px, 4vw, 48px);
+            align-items: center; margin-top: 10px; }
+  @media (max-width: 760px) { .figure { grid-template-columns: 1fr; } }
+  .fig-panel { background: linear-gradient(180deg, var(--panel-2), var(--panel));
+               border: 1px solid var(--line); border-radius: 18px; padding: 26px 18px; }
+  .callouts { list-style: none; display: grid; gap: 10px; }
+  .callouts li { display: grid; grid-template-columns: 30px 1fr; gap: 12px; align-items: baseline;
+                 padding: 10px 12px; border: 1px solid transparent; border-radius: 12px; transition: .2s; }
+  .callouts li:hover { border-color: #24312b; background: rgba(29,158,117,.05); }
+  .callouts .n { color: var(--teal-soft); font-variant-numeric: tabular-nums; font-size: 13px;
+                 letter-spacing: .08em; border: 1px solid #24312b; border-radius: 999px;
+                 width: 26px; height: 26px; display: grid; place-items: center; }
+  .callouts b { color: var(--ink); font-weight: 500; }
+  .callouts span.d { color: var(--muted); font-size: 14px; display: block; }
+
+  /* ---- spec cards ---- */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; margin-top: 22px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 20px 20px 16px; }
+  .card h3 { font-size: 12.5px; letter-spacing: .2em; text-transform: uppercase; color: var(--amber);
+             font-weight: 500; margin-bottom: 10px; }
+  .card .big { font-family: Georgia, serif; font-size: clamp(22px, 3vw, 30px); color: var(--ink); }
+  .card .unit { color: var(--faint); font-size: 14px; margin-left: 4px; }
+  .card p { color: var(--muted); font-size: 13.5px; margin-top: 8px; }
+
+  /* ---- tables ---- */
+  table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14.5px; }
+  th { text-align: left; font-size: 11.5px; letter-spacing: .18em; text-transform: uppercase;
+       color: var(--faint); font-weight: 500; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  td { padding: 12px; border-bottom: 1px solid #17171d; color: var(--muted); vertical-align: top; }
+  td:first-child { color: var(--ink); white-space: nowrap; }
+  tr:hover td { background: rgba(255,255,255,.015); }
+  @media (max-width: 760px) {
+    table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table thead, table tbody { min-width: 560px; display: table; width: 100%; }
+  }
+  .ok   { color: var(--teal-soft); }
+  .warn { color: var(--amber); }
+  .no   { color: var(--coral); }
+
+  /* ---- callout blocks ---- */
+  .note { border-left: 2px solid var(--amber); background: rgba(224,162,58,.06);
+          border-radius: 0 14px 14px 0; padding: 18px 22px; margin: 26px 0; max-width: 76ch; }
+  .note.red { border-left-color: var(--coral); background: rgba(216,90,48,.06); }
+  .note h4 { font-family: Georgia, serif; font-weight: 500; font-size: 18px; margin-bottom: 6px; }
+  .note p { color: var(--muted); font-size: 14.5px; }
+  .note p strong { color: var(--ink); font-weight: 500; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+  .chip { border: 1px solid #2b2b32; border-radius: 999px; padding: 6px 13px; font-size: 12.5px;
+          letter-spacing: .06em; color: var(--muted); }
+  .chip b { color: var(--ink); font-weight: 500; }
+
+  footer { border-top: 1px solid var(--line); padding: 44px 0 70px; color: var(--faint); font-size: 13.5px; }
+  footer .cta { display: inline-block; margin-bottom: 18px; border: 1px solid var(--teal);
+                color: var(--ink); border-radius: 999px; padding: 12px 30px; letter-spacing: .14em;
+                font-size: 13px; text-transform: uppercase; transition: .3s; }
+  footer .cta:hover { background: var(--teal); color: #04130d; text-decoration: none; }
+
+  /* ---- reveal on scroll (motion-safe) ---- */
+  .rv { opacity: 0; transform: translateY(14px); transition: opacity .7s ease, transform .7s ease; }
+  .rv.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .rv { opacity: 1; transform: none; transition: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="mast">
+    <div class="brand">AURA</div>
+    <a class="back" href="index.html">← THE EXPERIENCE</a>
+  </header>
+
+  <div class="hero">
+    <div class="kicker">Engineering dossier · rev 2</div>
+    <h1>What it takes to build a body that can <em>hold</em> a patient.</h1>
+    <p class="lede">The experience shows what AURA does. This page is the engineer's answer to
+      <strong>"could we actually build it?"</strong> — the physical requirements, force budgets,
+      sensing stack, care effectors, power system, and the safety case, with the honest line drawn
+      around what a home care robot must <strong>never</strong> be allowed to do by itself.</p>
+    <div class="chips">
+      <span class="chip"><b>1.52 m</b> standing height</span>
+      <span class="chip"><b>≤ 38 kg</b> total mass</span>
+      <span class="chip"><b>14 h</b> untethered duty</span>
+      <span class="chip"><b>&lt; 35 dB(A)</b> at 1 m, night mode</span>
+      <span class="chip"><b>ISO 13482</b> safety envelope</span>
+    </div>
+  </div>
+
+  <!-- ============ 01 · morphology ============ -->
+  <section id="morphology">
+    <div class="sec-head"><span class="sec-no">01</span><h2>Morphology — a soft machine on a stiff spine</h2></div>
+    <p class="sec-sub">Everything a patient touches is inflated and compliant; everything that carries
+      load is a slender internal skeleton the skin can never pinch against.</p>
+
+    <div class="figure">
+      <div class="fig-panel rv">
+        <svg viewBox="0 0 300 380" xmlns="http://www.w3.org/2000/svg" role="img"
+             aria-label="Annotated diagram of the AURA robot: numbered callouts on head, chest, arms, torso, and base">
+          <defs>
+            <radialGradient id="vinyl" cx="42%" cy="30%" r="80%">
+              <stop offset="0%" stop-color="#ffffff"/><stop offset="70%" stop-color="#dfe1da"/>
+              <stop offset="100%" stop-color="#b9bcb2"/>
+            </radialGradient>
+          </defs>
+          <!-- legs -->
+          <ellipse cx="118" cy="332" rx="34" ry="40" fill="url(#vinyl)"/>
+          <ellipse cx="182" cy="332" rx="34" ry="40" fill="url(#vinyl)"/>
+          <!-- arms -->
+          <ellipse cx="58"  cy="212" rx="26" ry="74" fill="url(#vinyl)" transform="rotate(14 58 212)"/>
+          <ellipse cx="242" cy="212" rx="26" ry="74" fill="url(#vinyl)" transform="rotate(-14 242 212)"/>
+          <!-- torso -->
+          <path d="M150 96 C 96 100, 62 148, 60 212 C 58 282, 100 318, 150 318
+                   C 200 318, 242 282, 240 212 C 238 148, 204 100, 150 96 Z" fill="url(#vinyl)"/>
+          <!-- head -->
+          <ellipse cx="150" cy="66" rx="46" ry="34" fill="url(#vinyl)"/>
+          <circle cx="132" cy="64" r="5" fill="#0b0d10"/><circle cx="168" cy="64" r="5" fill="#0b0d10"/>
+          <rect x="132" y="62.6" width="36" height="2.8" rx="1.4" fill="#0b0d10"/>
+          <!-- chest port -->
+          <circle cx="176" cy="182" r="13" fill="none" stroke="#8f9289" stroke-width="2"/>
+          <circle cx="176" cy="182" r="6" fill="#1D9E75" opacity=".8"/>
+          <!-- spine hint -->
+          <line x1="150" y1="100" x2="150" y2="300" stroke="#3a3a42" stroke-width="3" stroke-dasharray="5 6"/>
+          <!-- leader lines + numbers -->
+          <g stroke="#4b4b54" stroke-width="1">
+            <line x1="150" y1="38" x2="150" y2="14"/>
+            <line x1="189" y1="182" x2="262" y2="152"/>
+            <line x1="58"  y1="150" x2="24"  y2="120"/>
+            <line x1="242" y1="268" x2="272" y2="292"/>
+            <line x1="118" y1="368" x2="86"  y2="368"/>
+            <line x1="96"  y1="212" x2="150" y2="212"/>
+          </g>
+          <g font-family="Georgia, serif" font-size="13" fill="#E0A23A">
+            <text x="146" y="11">1</text>
+            <text x="266" y="150">2</text>
+            <text x="14"  y="116">3</text>
+            <text x="276" y="298">4</text>
+            <text x="74"  y="372">5</text>
+            <text x="153" y="208">6</text>
+          </g>
+        </svg>
+      </div>
+      <ol class="callouts">
+        <li class="rv"><span class="n">1</span><div><b>Head sensor suite.</b>
+          <span class="d">60 GHz mmWave radar (heart & breath, through blankets), radiometric thermal camera with an internal black-body reference (±0.2 °C), RGB-D, and a 4-mic array behind acoustically transparent skin.</span></div></li>
+        <li class="rv"><span class="n">2</span><div><b>Chest access port & heartlight.</b>
+          <span class="d">Service hatch for the pressure regulator and filters; the ring-light doubles as the state indicator patients actually read (teal calm → amber escalation).</span></div></li>
+        <li class="rv"><span class="n">3</span><div><b>Series-elastic arms.</b>
+          <span class="d">Torque is delivered through a measured spring, so the arm *is* its own force sensor — back-drivable at any moment, mechanically incapable of exceeding the hug budget.</span></div></li>
+        <li class="rv"><span class="n">4</span><div><b>Dose & compress bay (forearm).</b>
+          <span class="d">Pharmacy-sealed unit-dose carousel with chain-of-custody logging, and a Peltier-chilled gel compress at 18–21 °C.</span></div></li>
+        <li class="rv"><span class="n">5</span><div><b>Base: battery & dock.</b>
+          <span class="d">LiFePO₄ pack low in the pelvis for an un-tippable centre of mass; charge contacts in the footprint for the night dock.</span></div></li>
+        <li class="rv"><span class="n">6</span><div><b>Stiff spine, soft everything else.</b>
+          <span class="d">A carbon-fibre/7075 column carries all loads. The skin is an inflated bladder at ~1.3 kPa — a firm cushion, never a shell.</span></div></li>
+      </ol>
+    </div>
+
+    <div class="cards">
+      <div class="card rv"><h3>Envelope</h3><div class="big">1.52 m<span class="unit">tall · 0.9 m wide</span></div>
+        <p>Sized to hold a seated adult and pass a 762 mm interior door. Reach 0.78 m per arm.</p></div>
+      <div class="card rv"><h3>Mass budget</h3><div class="big">≤ 38 kg<span class="unit">total</span></div>
+        <p>Battery 9 kg · frame 8 kg · actuation 10 kg · skin & bladders 4 kg · compute, sensing, care bay 5 kg · reserve 2 kg.</p></div>
+      <div class="card rv"><h3>Skin</h3><div class="big">1.2–1.5 kPa<span class="unit">bladder pressure</span></div>
+        <p>TPU-coated ripstop nylon, RF-welded seams, antimicrobial (ISO 22196) wipe-clean outer, IP54. A puncture deflates gently over minutes — it sighs, it never pops.</p></div>
+      <div class="card rv"><h3>Breathing</h3><div class="big">±4 %<span class="unit">chest excursion</span></div>
+        <p>A dedicated low-noise blower modulates the torso bladder so the body visibly breathes — the pacing signal Elena's nervous system entrains to.</p></div>
+    </div>
+  </section>
+
+  <!-- ============ 02 · touch ============ -->
+  <section id="touch">
+    <div class="sec-head"><span class="sec-no">02</span><h2>Touch — the hug as a controlled dose</h2></div>
+    <p class="sec-sub">Deep-pressure therapy is a dosed mechanical intervention. The budget below is the
+      whole point of the machine: strong enough to feel held, weak enough to be inherently safe.</p>
+
+    <table>
+      <thead><tr><th>Quantity</th><th>Requirement</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>Embrace pressure</td><td><span class="ok">2.7–5.3 kPa (20–40 mmHg)</span> distributed over ≥ 600 cm²</td>
+            <td>The clinically studied deep-pressure band — clearly below tissue-injury thresholds.</td></tr>
+        <tr><td>Peak contact force</td><td>≤ 65 N per arm, quasi-static</td>
+            <td>Inside ISO/TS 15066 body-region limits for the thorax with a compliant surface.</td></tr>
+        <tr><td>Release</td><td>Back-drivable in ≤ 150 ms; passive release on power loss</td>
+            <td>Springs open the arms when de-energised — a patient can always simply stand up.</td></tr>
+        <tr><td>Pinch points</td><td>None accessible &lt; 25 mm</td><td>Gaps are bridged by the inflated skin itself.</td></tr>
+        <tr><td>Skin warmth</td><td>36–40 °C zones, hardware-limited at 41 °C</td>
+            <td>Contact-heating limits per IEC 60601 thinking: warm presence, zero burn risk even asleep against it.</td></tr>
+        <tr><td>Squeeze rhythm</td><td>Exhale-locked, ≤ 0.15 Hz modulation</td>
+            <td>Pressure pulses ride the patient's own breath — co-regulation, not restraint.</td></tr>
+      </tbody>
+    </table>
+
+    <div class="note rv">
+      <h4>The governing principle: safe by construction, not by software.</h4>
+      <p>No line of code is trusted to keep the hug gentle. The actuators <strong>cannot</strong> produce
+      an unsafe force: series-elastic elements saturate mechanically, the skin distributes load, and
+      power loss opens the arms. Software only ever makes the machine <em>gentler</em> than its hardware ceiling.</p>
+    </div>
+  </section>
+
+  <!-- ============ 03 · sensing ============ -->
+  <section id="sensing">
+    <div class="sec-head"><span class="sec-no">03</span><h2>Sensing — vitals without a single wire on the patient</h2></div>
+    <p class="sec-sub">Elena wears nothing. Everything in the scan phase of the experience maps to a
+      contactless modality that exists today.</p>
+
+    <table>
+      <thead><tr><th>Signal</th><th>Modality</th><th>Performance target</th></tr></thead>
+      <tbody>
+        <tr><td>Respiration</td><td>60 GHz FMCW mmWave radar</td><td>±1 breath/min, works through clothing & blankets</td></tr>
+        <tr><td>Heart rate</td><td>mmWave micro-Doppler + rPPG fusion (RGB)</td><td>±3 bpm at 0.3–2.5 m</td></tr>
+        <tr><td>Core-trend temperature</td><td>Radiometric LWIR camera, black-body referenced</td><td>±0.2 °C at the inner canthus</td></tr>
+        <tr><td>SpO₂ (spot-check)</td><td>Fingertip PPG in the hand she's already holding</td><td>Clinical-grade only on contact; never inferred remotely</td></tr>
+        <tr><td>Distress & speech</td><td>4-mic array, on-device models</td><td>Cry/fall/keyword detection with no cloud audio</td></tr>
+        <tr><td>Contact & posture</td><td>Capacitive skin + IMU + RGB-D</td><td>Knows where the patient is against its body, always</td></tr>
+      </tbody>
+    </table>
+
+    <p class="body">The fused stream feeds the same <strong>green / amber / red</strong> policy the
+      prototype app demonstrates — including the <strong>amber-plus guardrail</strong>: a post-sepsis
+      fever is never "cleared" at home on reassuring vitals alone; the band floors at amber and a FHIR
+      Communication goes to night triage. Catch the slope, not the threshold — and never withhold escalation.</p>
+  </section>
+
+  <!-- ============ 04 · care effectors ============ -->
+  <section id="care">
+    <div class="sec-head"><span class="sec-no">04</span><h2>Care effectors — what the hands actually do</h2></div>
+    <p class="sec-sub">Each capability in the experience's care phase is a physical module with a
+      deliberately narrow mandate.</p>
+
+    <div class="cards">
+      <div class="card rv"><h3>Dose carousel</h3><div class="big">14 × <span class="unit">sealed unit doses</span></div>
+        <p>Loaded and sealed by the pharmacy, not the robot. AURA presents the scheduled blister,
+        verifies intake on camera, and logs to the medication record. It cannot open, split, or
+        substitute a dose — adherence support, not prescribing.</p></div>
+      <div class="card rv"><h3>Thermal comfort</h3><div class="big">18–21 °C<span class="unit">compress</span></div>
+        <p>Peltier-chilled gel pad, force-limited placement against the forehead, auto-lift on any
+        head movement. Comfort measure only; the thermal camera keeps reading the fever underneath.</p></div>
+      <div class="card rv"><h3>Hydration</h3><div class="big">150 ml<span class="unit">cup dock</span></div>
+        <p>Presents water with a compliant two-finger grip (≤ 8 N). Intake is logged for the
+        deterioration model — dehydration is a sepsis-relapse accelerant.</p></div>
+      <div class="card rv"><h3>Emergency loop</h3><div class="big">&lt; 30 s<span class="unit">to a human</span></div>
+        <p>Red-flag speech or vitals open a nurse video/audio channel on the chest surface and, if
+        unanswered, escalate to emergency services with location and the vitals packet.</p></div>
+    </div>
+  </section>
+
+  <!-- ============ 05 · procedures ============ -->
+  <section id="procedures">
+    <div class="sec-head"><span class="sec-no">05</span><h2>Procedure tiers — and the line we will not cross</h2></div>
+    <p class="sec-sub">"Can it do mini surgeries?" is the right question to ask and the wrong thing to
+      build. Here is the full capability ladder, tier by tier, with the honest engineering and
+      regulatory reasons for where it stops.</p>
+
+    <table>
+      <thead><tr><th>Tier</th><th>Capability</th><th>Autonomy</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>T0 · Comfort</td><td>Deep-pressure hold, warmth, breath pacing, cooling compress</td>
+            <td>Autonomous</td><td><span class="ok">In the experience</span></td></tr>
+        <tr><td>T1 · Monitoring & adherence</td><td>Contactless vitals, scheduled-dose dispensing, hydration, sleep watch</td>
+            <td>Autonomous, guardrailed</td><td><span class="ok">In the experience</span></td></tr>
+        <tr><td>T2 · Guided first aid</td><td>Coaches the human: wound-dressing guidance, CPR pacing on its own chest, AED retrieval, choking protocol</td>
+            <td>Robot guides, human acts</td><td><span class="warn">Roadmap</span></td></tr>
+        <tr><td>T3 · Tele-examination</td><td>Clinician drives: auscultation head, otoscope/dermatoscope presentation, guided palpation with force echo</td>
+            <td>Clinician-in-the-loop</td><td><span class="warn">Roadmap</span></td></tr>
+        <tr><td>TX · Invasive procedures</td><td>Injections, venipuncture, suturing, incision — any breach of skin</td>
+            <td>—</td><td><span class="no">Excluded by design</span></td></tr>
+      </tbody>
+    </table>
+
+    <div class="note red rv">
+      <h4>Why AURA will never do surgery — a position, not a shrug.</h4>
+      <p><strong>1 · Physics.</strong> Every safety property above comes from compliance — low pressure, soft
+      skin, saturating actuators. Invasive work needs the opposite: rigid, sub-millimetre, high-stiffness
+      manipulation. One body cannot be maximally soft and surgically stiff; bolting a scalpel to a hug
+      machine forfeits the safety case that lets it live unsupervised in a bedroom.
+      <br/><strong>2 · Regulation.</strong> T0–T1 track as a Class II device with a software-as-medical-device
+      pathway. Skin-breaching autonomy is Class III territory — surgical robots ship with a credentialed
+      surgeon at a console, in an OR, with sterile field and anaesthesia support. None of that exists at
+      2 a.m. in Elena's bedroom.
+      <br/><strong>3 · The mission.</strong> The clinical gap AURA fills is the lonely deterioration window
+      between discharge and readmission. What closes it is monitoring, adherence, co-regulation, and fast
+      escalation to humans — precisely T0–T3. When something needs cutting, AURA's job is to have already
+      called the people with the scalpel.</p>
+    </div>
+  </section>
+
+  <!-- ============ 06 · power & compute ============ -->
+  <section id="power">
+    <div class="sec-head"><span class="sec-no">06</span><h2>Power, compute, quiet</h2></div>
+    <p class="sec-sub">A night-care robot earns its place by being trustworthy at 3 a.m.: silent, cool,
+      never dead when reached for.</p>
+
+    <div class="cards">
+      <div class="card rv"><h3>Battery</h3><div class="big">810 Wh<span class="unit">LiFePO₄, 25.6 V</span></div>
+        <p>Chemistry chosen for thermal stability in a device people sleep against. ≥ 14 h active duty,
+        3,000+ cycles, cell-level fusing, charges only on the dock.</p></div>
+      <div class="card rv"><h3>Compute</h3><div class="big">25 W<span class="unit">typical · 60 W peak</span></div>
+        <p>Jetson-class module. All perception, speech, and the deterioration model run on-device;
+        the conversational brain may be cloud (as in the talk prototype) but safety logic never is.</p></div>
+      <div class="card rv"><h3>Acoustics</h3><div class="big">&lt; 35 dB(A)<span class="unit">night mode, 1 m</span></div>
+        <p>Blower on fluid bearings, oversized slow fans, bladder acts as its own muffler. Quieter than
+        the fridge two rooms away.</p></div>
+      <div class="card rv"><h3>Thermals</h3><div class="big">≤ 43 °C<span class="unit">any touchable point</span></div>
+        <p>Skin is the radiator: the bladder's circulating air carries compute heat to the full body
+        surface — which is also what makes the body feel warm-blooded.</p></div>
+    </div>
+  </section>
+
+  <!-- ============ 07 · safety case ============ -->
+  <section id="safety">
+    <div class="sec-head"><span class="sec-no">07</span><h2>The safety & compliance stack</h2></div>
+    <p class="sec-sub">The paperwork is part of the machine. Target conformance, in the order an auditor
+      would ask for it:</p>
+
+    <table>
+      <thead><tr><th>Standard</th><th>Scope</th><th>AURA obligation</th></tr></thead>
+      <tbody>
+        <tr><td>ISO 13482</td><td>Personal care robots</td><td>The core safety envelope: contact forces, stability, emergency stop, autonomous-behaviour limits.</td></tr>
+        <tr><td>ISO/TS 15066</td><td>Collaborative force limits</td><td>Body-region pressure/force ceilings adopted for every contact behaviour, hug included.</td></tr>
+        <tr><td>IEC 60601-1 / -1-2</td><td>Medical electrical safety / EMC</td><td>Patient-contact electrical safety; radar/radio coexistence with home medical devices.</td></tr>
+        <tr><td>IEC 62304 + ISO 14971</td><td>Software lifecycle + risk management</td><td>The deterioration model and escalation logic developed as Class B/C software with a living risk file.</td></tr>
+        <tr><td>IEC 81001-5-1</td><td>Health-software cybersecurity</td><td>Signed firmware, no remote actuation path, radio-silent "sanctuary mode" that keeps all T0 functions local.</td></tr>
+        <tr><td>HIPAA / GDPR</td><td>Patient data</td><td>Vitals processed on-device; only FHIR escalation packets leave, over TLS, to the named care team. No cloud audio or video at rest.</td></tr>
+      </tbody>
+    </table>
+
+    <p class="body"><strong>Failure posture:</strong> every fault degrades toward <em>softer and more
+      human</em> — sensors fail → escalate to a person; power fails → arms open; network fails → local
+      care continues, sirenless, while the dock's landline path carries the red-flag call. The one
+      thing AURA is never allowed to fail at is handing you to a human.</p>
+  </section>
+
+  <footer>
+    <a class="cta" href="index.html">Return to the experience</a>
+    <p>AURA is a design prototype, not a medical device. Figures on this page are engineering targets
+      derived from published standards and component datasheets, stated so they can be checked — not
+      claims of a certified system. Companion spec: <em>AURA_Technical_Specification.docx</em>.</p>
+  </footer>
+
+</div>
+
+<script>
+  // motion-safe scroll reveal
+  const mq = matchMedia("(prefers-reduced-motion: reduce)");
+  const els = document.querySelectorAll(".rv");
+  if (mq.matches || !("IntersectionObserver" in window)) {
+    els.forEach(el => el.classList.add("in"));
+  } else {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(en => { if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); } });
+    }, { threshold: 0.15 });
+    els.forEach(el => io.observe(el));
+  }
+</script>
+</body>
+</html>

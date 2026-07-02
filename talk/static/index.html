@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>AURA — talk with me</title>
+<style>
+  :root { --teal:#1D9E75; --coral:#D85A30; --amber:#E0A23A; --ink:#ECEAE2; --muted:#9b988f; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; overflow:hidden; background:#08080b; }
+  body { font-family:"Avenir Next","Helvetica Neue",system-ui,sans-serif; color:var(--ink);
+         -webkit-font-smoothing:antialiased; user-select:none; }
+  #scene { position:fixed; inset:0; }
+
+  .corner { position:fixed; z-index:20; font-size:12px; letter-spacing:.14em; color:var(--muted); }
+  #brand { top:20px; left:24px; }
+  #brand b { color:var(--teal); font-weight:600; letter-spacing:.22em; }
+  #mode { top:22px; right:24px; text-transform:uppercase; opacity:.8; }
+  #mode .dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--muted);
+               margin-right:6px; vertical-align:middle; }
+  #mode.claude .dot { background:var(--teal); } #mode.offline .dot { background:var(--amber); }
+
+  #state { position:fixed; top:46%; left:50%; transform:translate(-50%,-50%); z-index:14;
+           font-size:13px; letter-spacing:.28em; text-transform:uppercase; color:var(--muted);
+           opacity:.7; pointer-events:none; transition:opacity .4s; }
+
+  /* transcript: last couple of lines, floating bottom-center */
+  #log { position:fixed; left:50%; bottom:140px; transform:translateX(-50%); z-index:13;
+         width:min(680px,88vw); max-height:34vh; overflow:hidden; text-align:center;
+         display:flex; flex-direction:column; gap:10px; pointer-events:none; }
+  .msg { font-size:clamp(15px,1.9vw,19px); line-height:1.5; opacity:0; animation:rise .5s forwards; }
+  .msg.aura { font-family:Georgia,serif; font-style:italic; color:var(--ink);
+              text-shadow:0 2px 24px rgba(0,0,0,.8); }
+  .msg.you { color:var(--muted); font-size:clamp(13px,1.5vw,15px); }
+  @keyframes rise { from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:none;} }
+
+  #bar { position:fixed; left:50%; bottom:38px; transform:translateX(-50%); z-index:21;
+         display:flex; gap:12px; align-items:center; width:min(680px,90vw); }
+  #text { flex:1; background:rgba(255,255,255,.05); border:1px solid #2b2b32; color:var(--ink);
+          border-radius:999px; padding:13px 18px; font:inherit; font-size:15px; outline:none; }
+  #text:focus { border-color:var(--teal); }
+  #text::placeholder { color:#5f5d57; }
+  #send, #mic { border:none; border-radius:999px; cursor:pointer; font:inherit; font-weight:600;
+                width:52px; height:52px; flex:0 0 auto; transition:.2s; }
+  #send { background:rgba(255,255,255,.06); color:var(--ink); width:auto; padding:0 18px; border:1px solid #2b2b32; }
+  #send:hover { border-color:var(--teal); }
+  #mic { background:var(--teal); color:#04130d; font-size:20px; box-shadow:0 0 0 0 rgba(29,158,117,.5); }
+  #mic.listening { animation:micpulse 1.4s infinite; background:var(--coral); color:#1a0a05; }
+  @keyframes micpulse { 0%,100%{box-shadow:0 0 0 0 rgba(216,90,48,.55);} 50%{box-shadow:0 0 0 14px rgba(216,90,48,0);} }
+
+  #escal { position:fixed; left:50%; top:78px; transform:translateX(-50%); z-index:30;
+           background:#220d0a; border:1px solid var(--coral); color:#ffd9cc; border-radius:12px;
+           padding:12px 18px; max-width:min(560px,90vw); text-align:center; font-size:14px;
+           line-height:1.45; display:none; box-shadow:0 8px 40px -8px rgba(0,0,0,.8); }
+  #escal b { color:var(--coral); }
+
+  #intro { position:fixed; inset:0; z-index:40; display:grid; place-items:center;
+           background:radial-gradient(circle at 50% 45%,rgba(18,16,12,.5),rgba(8,8,11,.96));
+           backdrop-filter:blur(3px); transition:opacity 1.2s; }
+  #intro.gone { opacity:0; pointer-events:none; }
+  .ibox { text-align:center; max-width:520px; padding:0 24px; }
+  .ibox h1 { font-weight:500; letter-spacing:.4em; font-size:clamp(30px,6vw,54px); color:var(--teal); }
+  .ibox p { color:var(--muted); font-family:Georgia,serif; font-style:italic; margin-top:8px;
+            font-size:clamp(14px,2vw,17px); }
+  .ibox .note { color:#6f6d66; font-size:12px; margin-top:16px; line-height:1.6; font-style:normal;
+                font-family:inherit; letter-spacing:.02em; }
+  .btns { margin-top:30px; display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+  #begin { background:none; color:var(--ink); border:1px solid var(--teal);
+           border-radius:999px; padding:13px 36px; font:inherit; font-size:15px; letter-spacing:.16em;
+           text-transform:uppercase; cursor:pointer; transition:.3s; }
+  #begin:hover { background:var(--teal); color:#04130d; }
+  .ghostbtn { background:none; color:var(--muted); border:1px solid #3a3a44; border-radius:999px;
+              padding:13px 26px; font:inherit; font-size:13px; letter-spacing:.1em; cursor:pointer; transition:.3s; }
+  .ghostbtn:hover { color:var(--ink); border-color:var(--muted); }
+  .brain { margin-top:22px; color:#7d7a86; font-size:11.5px; letter-spacing:.04em; line-height:1.6; }
+  .brain b { color:var(--teal); font-weight:600; }
+</style>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+
+  <div id="brand" class="corner"><b>AURA</b> · recovery companion</div>
+  <div id="mode" class="corner"><span class="dot"></span><span id="modeText">…</span></div>
+  <div id="state">here with you</div>
+
+  <div id="escal"></div>
+  <div id="log"></div>
+
+  <div id="bar">
+    <input id="text" type="text" placeholder="Type to AURA, or tap the mic to talk…" autocomplete="off" />
+    <button id="send">Send</button>
+    <button id="mic" title="Hold a conversation by voice">🎙️</button>
+  </div>
+
+  <div id="intro">
+    <div class="ibox">
+      <h1>AURA</h1>
+      <p>talk with me — I'm listening</p>
+      <div class="note">Speak or type. AURA is a recovery companion, not a doctor;
+        if anything is an emergency it will tell you to call for help.</div>
+      <div class="btns">
+        <button id="begin">Begin</button>
+        <button id="demo" class="ghostbtn">▶ Watch a demo</button>
+      </div>
+      <div class="brain">✦ Runs entirely on your Mac — <b>Whisper</b> hears ·
+        <b>qwen2.5</b> thinks · <b>Piper</b> speaks · 100% private, no cloud</div>
+    </div>
+  </div>
+
+  <script src="vendor/three.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
