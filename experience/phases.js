@@ -59,7 +59,7 @@ window.AURA_PHASES = [
     voice: "AURA", act: "Deep-pressure hold",
     line: "Before anything else — can I just hold you? Feel the pressure of my arms. No effort. I've got us.",
     rate: 22, embrace: 1.0, warmth: 0.44, calm: 0.32, dur: 11, breathe: false,
-    compress: 0.6,
+    compress: 0.35,
     instruction: "Feel the weight settle. Let your breath drift toward mine.",
   },
   {

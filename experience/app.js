@@ -237,18 +237,37 @@
   }
   const armL = makeArm(-1), armR = makeArm(1);
 
-  // ---- Elena (abstract, curled, coral) --------------------------------------
+  // ---- Elena: a small figure curled around her own knees, back to AURA -----
   const elena = new THREE.Group(); scene.add(elena);
+  const elenaFig = new THREE.Group(); elena.add(elenaFig);
+  const EBASE = 1.16;                       // overall figure scale (breathes in tick)
   const elenaMat = new THREE.MeshPhysicalMaterial({
     color: 0xc25a38, roughness: 0.62, sheen: 0.8, sheenColor: new THREE.Color(0xffb38a),
     clearcoat: 0.2, emissive: new THREE.Color(0x4a160a), emissiveIntensity: 0.25 });
-  const elenaBody = new THREE.Mesh(new THREE.SphereGeometry(0.82, 48, 36), elenaMat);
-  elenaBody.scale.set(1.0, 0.9, 1.0);
-  elena.add(elenaBody);
-  const elenaHead = new THREE.Mesh(new THREE.SphereGeometry(0.30, 36, 26), elenaMat);
-  elenaHead.scale.set(1, 0.92, 1);
-  elenaHead.position.set(0, 0.35, 0.68);   // tucked forward: a curled figure
-  elena.add(elenaHead);
+  const eMesh = (geo, x, y, z, rx = 0, rz = 0) => {
+    const m = new THREE.Mesh(geo, elenaMat);
+    m.position.set(x, y, z); m.rotation.x = rx; m.rotation.z = rz;
+    elenaFig.add(m); return m;
+  };
+  // torso folded forward over the knees
+  const eTorsoGeo = new THREE.SphereGeometry(0.52, 40, 30);
+  eTorsoGeo.scale(1.05, 1.25, 0.95);
+  eMesh(eTorsoGeo, 0, 0.02, -0.12, 0.52);
+  // head resting on the knees, tipped down
+  const eHeadGeo = new THREE.SphereGeometry(0.235, 32, 24);
+  eHeadGeo.scale(0.92, 1, 0.96);
+  eMesh(eHeadGeo, 0, 0.47, 0.34, 0.35);
+  // knees drawn up, shins tucked beneath
+  const eKneeGeo = new THREE.SphereGeometry(0.19, 28, 20);
+  eMesh(eKneeGeo, -0.15, 0.18, 0.42);
+  eMesh(eKneeGeo, 0.15, 0.18, 0.42);
+  const eShinGeo = new THREE.CapsuleGeometry(0.105, 0.22, 6, 14);
+  eMesh(eShinGeo, -0.15, -0.04, 0.44, 0.3);
+  eMesh(eShinGeo, 0.15, -0.04, 0.44, 0.3);
+  // arms wrapped around the shins
+  const eArmGeo = new THREE.CapsuleGeometry(0.085, 0.42, 6, 14);
+  eMesh(eArmGeo, -0.30, 0.16, 0.26, 1.1, 0.3);
+  eMesh(eArmGeo, 0.30, 0.16, 0.26, 1.1, -0.3);
   const elenaHome = new THREE.Vector3(0.0, -0.98, 1.85);   // forward & low: cradled, visible
   elena.position.copy(elenaHome);
 
@@ -278,16 +297,16 @@
   const pillPath = new THREE.QuadraticBezierCurve3(
     new THREE.Vector3(0.95, -0.35, 0.75),
     new THREE.Vector3(0.55, 0.30, 1.55),
-    new THREE.Vector3(0.10, -0.50, 1.90));
+    new THREE.Vector3(0.05, -0.42, 2.05));
 
   // cooling compress resting on Elena's forehead
   const compressMat = new THREE.MeshStandardMaterial({ color: 0xcfeaff,
     emissive: 0x6fc9e8, emissiveIntensity: 0.55, transparent: true, opacity: 0 });
-  const compress = new THREE.Mesh(new THREE.SphereGeometry(0.17, 28, 18), compressMat);
-  compress.scale.set(1, 0.38, 0.8);
-  compress.position.set(0, 0.56, 0.84);    // on the tucked head
-  compress.rotation.x = -0.7;
-  elena.add(compress);
+  const compress = new THREE.Mesh(new THREE.SphereGeometry(0.13, 28, 18), compressMat);
+  compress.scale.set(1, 0.32, 0.8);
+  compress.position.set(0, 0.60, 0.40);    // lying flat on her forehead
+  compress.rotation.x = -0.45;
+  elenaFig.add(compress);
 
   // ---- state ----------------------------------------------------------------
   const cur = { rate: 26, embrace: 0, warmth: 0.06, calm: 0.04, scan: 0, compress: 0 };
@@ -372,10 +391,10 @@
 
   function setEmbrace(e) {
     // swing shoulders forward, cross the arms inward, curl the forearms around her
-    armL.shoulder.rotation.x = armR.shoulder.rotation.x = -0.12 - 1.35 * e;
+    armL.shoulder.rotation.x = armR.shoulder.rotation.x = -0.14 - 1.48 * e;
     armL.shoulder.rotation.z = -0.55 + 1.17 * e;
     armR.shoulder.rotation.z = 0.55 - 1.17 * e;
-    armL.elbow.rotation.x = armR.elbow.rotation.x = -0.45 * e;
+    armL.elbow.rotation.x = armR.elbow.rotation.x = -0.55 * e;
     armL.elbow.rotation.z = 0.30 * e;
     armR.elbow.rotation.z = -0.30 * e;
     headGroup.rotation.x = 0.20 * e;       // tip the head down toward her, tenderly
@@ -477,9 +496,9 @@
     const eAmp = 0.10 * (1 - 0.5 * cur.calm);
     const squeezeNow = (cur.embrace > 0.5 && !rising) ? (1 - breath) * cur.embrace : 0;
     const compressAmt = 0.06 * squeezeNow + 0.18 * st.squeeze;
-    elenaBody.scale.set(0.96 * (1 + eAmp * eBreath) * (1 - compressAmt),
-                        0.82 * (1 + eAmp * eBreath) * (1 - compressAmt * 0.5),
-                        0.96 * (1 + eAmp * eBreath) * (1 - compressAmt));
+    elenaFig.scale.set(EBASE * (1 + eAmp * eBreath) * (1 - compressAmt),
+                       EBASE * (1 + eAmp * eBreath) * (1 - compressAmt * 0.5),
+                       EBASE * (1 + eAmp * eBreath) * (1 - compressAmt));
     // tremor when frightened, stilling as calm rises
     const tremor = 0.05 * (1 - cur.calm);
     elena.position.set(
