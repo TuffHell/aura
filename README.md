@@ -14,7 +14,11 @@ The achievable slice of Project AURA, built from the canonical Elena scenario in
   triage (the amber-plus guardrail made visible), then holds her** in the
   deep-pressure embrace and walks her breath down from panic to the 0.1 Hz
   resonance frequency while warmth rises and the ACT voice speaks. No charts —
-  the demo *is* the therapy.
+  the demo *is* the therapy. The **🎤 TALK button** opens companion mode: speak
+  to AURA with your own voice (or type) and it answers in the ACT voice with the
+  red-flag guardrail active — the offline responder from `talk/persona.py`
+  ported to the browser, fully on-device, so the live site needs no server and
+  nothing you say leaves the page.
 - **`experience/engineering.html`** — the engineering dossier: the real-world
   physical requirements (mass/force/thermal/power budgets, contactless-vitals
   sensing stack, care effectors, ISO 13482 / IEC 60601 / ISO TS 15066 safety

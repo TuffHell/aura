@@ -292,7 +292,8 @@
   // ---- state ----------------------------------------------------------------
   const cur = { rate: 26, embrace: 0, warmth: 0.06, calm: 0.04, scan: 0, compress: 0 };
   const st = { i: -1, t: 0, started: false, sound: true, breathPhase: 0, elenaPhase: 0.5,
-               squeeze: 0, prevBreath: 0, blinkAt: 3.2, blinkT: 1 };
+               squeeze: 0, prevBreath: 0, blinkAt: 3.2, blinkT: 1, alert: 0 };
+  const talk = { on: false, listening: false, wantMic: false };
 
   // ---- DOM ------------------------------------------------------------------
   const $ = (id) => document.getElementById(id);
@@ -321,17 +322,18 @@
     for (const name of prefer) { const v = vs.find(x => x.name && x.name.toLowerCase().includes(name)); if (v) return v; }
     return vs.find(v => /en[-_]/i.test(v.lang)) || vs[0] || null;
   }
-  function speak(text, who) {
-    if (!st.sound || !window.speechSynthesis || !text) return;
+  function speak(text, who, onend) {
+    if (!st.sound || !window.speechSynthesis || !text) { if (onend) onend(); return; }
     try { speechSynthesis.cancel(); } catch (e) {}
     const u = new SpeechSynthesisUtterance(text);
     if (who === "ELENA") { u.rate = 1.0; u.pitch = 1.12; u.voice = pickVoice(["moira","karen","tessa","fiona","samantha"]); }
     else { u.rate = 0.86; u.pitch = 0.96; u.voice = pickVoice(["samantha","ava","allison","serena"]); }
+    if (onend) { u.onend = onend; u.onerror = onend; }
     speechSynthesis.speak(u);
   }
 
   // ---- phase machine --------------------------------------------------------
-  function enterPhase(i) {
+  function enterPhase(i, quiet) {
     st.i = i; st.t = 0;
     const p = PHASES[i];
     clockT.textContent = p.clock;
@@ -349,7 +351,7 @@
     pacer.style.opacity = p.breathe ? "1" : "0";
     whisper.style.opacity = (p.breathe || p.scan || p.note) ? "0.8" : "0";
     if (p.note) whisper.textContent = p.note;
-    if (p.voice && p.line) speak(p.line, p.voice);
+    if (!quiet && p.voice && p.line) speak(p.line, p.voice);
     if (p.last) replayBtn.style.display = "inline-block";
   }
 
@@ -389,8 +391,8 @@
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
     const tSec = now / 1000;
 
-    // phase advance
-    if (st.started) {
+    // phase advance (held while a live conversation is happening)
+    if (st.started && !talk.on) {
       st.t += dt;
       const ph = PHASES[st.i];
       if (ph && !ph.last && st.t >= ph.dur && st.i < PHASES.length - 1) enterPhase(st.i + 1);
@@ -431,6 +433,11 @@
     // heartlight: breathes with AURA; pulses brighter while scanning
     portGlowMat.opacity = 0.18 + 0.3 * cur.warmth + 0.12 * breath
                         + cur.scan * (0.25 + 0.2 * Math.sin(tSec * 6));
+    if (st.alert > 0) {   // red-flag escalation: the heartlight beats coral
+      st.alert -= dt;
+      portGlowMat.color.setHex(0xd85a30);
+      portGlowMat.opacity = 0.45 + 0.35 * Math.sin(tSec * 9);
+    }
 
     // contactless vitals sweep
     scanMat.opacity = 0.55 * cur.scan;
@@ -525,6 +532,160 @@
     renderer.setSize(innerWidth, innerHeight);
   }
   addEventListener("resize", resize); resize();
+
+  // ===========================================================================
+  //  Talk mode — converse with AURA in your own voice, entirely on-device.
+  //  A JS port of talk/persona.py's offline ACT responder + red-flag guardrail:
+  //  speech recognition and synthesis are the browser's own; no audio, text, or
+  //  identifier leaves this page. (The Claude-quality brain lives in talk/.)
+  // ===========================================================================
+  const RED_FLAGS = [
+    [/\b(chest (pain|hurts?|hurting|tight|tightness|pressure)|crushing|pressure in my chest|tight chest)\b/i, "chest pain"],
+    [/\b(can'?t breathe|cannot breathe|can'?t get (a )?breath|short of breath|gasping|choking|throat closing)\b/i, "breathing emergency"],
+    [/\b(suicid\w*|kill myself|end it all|don'?t want to (live|be here)|hurt myself|harm myself|want to die)\b/i, "self-harm"],
+    [/\b(face (is )?droop|slurred speech|can'?t move (my|one) (arm|side|leg)|numb on one side)\b/i, "stroke signs"],
+    [/\b(passed out|fainted|faint(ing)?|going to faint|about to pass out|pass(ing)? out|blacked out|losing consciousness)\b/i, "loss of consciousness"],
+    [/\b(bleeding|blood (everywhere|soaking|all over)|gushing|hemorrhag\w*|coughing up blood|vomiting blood)\b/i, "bleeding"],
+    [/\b(lips (are )?(blue|turning blue)|anaphyla\w*|tongue (is )?swelling)\b/i, "severe allergic / cyanosis"],
+  ];
+  const ESCALATION_REPLY =
+    "Oh sweetheart, I'm right here and I'm not leaving you. What you're describing needs a real " +
+    "person now — please call emergency services, or your nurse line if you're unsure. Do it for " +
+    "me, love, and I'll stay with you the whole time.";
+  const INTENTS = [
+    [/\b(hi|hello|hey|are you there|good (morning|evening|night))\b/i,
+     "Hello, sweetheart. I'm so glad you're here with me. How are you feeling right now, in your body? Take your time."],
+    [/\b(panic|anxious|anxiety|scared|terrified|racing|can'?t calm)\b/i,
+     "I hear how frightening this feels, and after what your body has been through, that fear makes sense. You're not alone with it. Can we take one slow breath together — in, and a longer way out?"],
+    [/\b(it'?s (back|happening again)|relaps\w*|getting worse again|sepsis|infection again)\b/i,
+     "That fear is so understandable. Let's not let it guess for us — let's look at it together. A few minutes ago you reached out clearly, and that's you taking care of yourself. If the worry keeps climbing, I can help you reach your nurse line."],
+    [/\b(am i dying|going to die|something(?:'s| is) wrong with me)\b/i,
+     "I won't pretend to know what's happening in your body, and I won't wave your fear away either. If anything feels truly severe, we call a human right away. Otherwise, stay with me a moment and tell me what you're feeling, slowly."],
+    [/\b(pain|hurts?|hurting|aching|ache|sore|throbbing)\b/i,
+     "I'm sorry you're hurting. Where is it, and is it new or one you've felt before? Real pain deserves a real person's eyes — if it's sharp, spreading, or scaring you, let's loop in your nurse line."],
+    [/\b(dizzy|light[- ]?headed|spinning|vertigo|woozy)\b/i,
+     "Let's get you safe first — please sit or lie down so you don't fall. Dizziness after a hospital stay is worth a nurse's ear; if it comes with chest pain, fainting, or trouble speaking, that's a call-now sign."],
+    [/\b(nause\w*|throwing up|vomit\w*|sick to my stomach|queasy)\b/i,
+     "That sounds miserable. Small sips of water can help, and tell me if you can't keep fluids down or it won't stop — that's worth your nurse line. I'm here with you."],
+    [/\b(wound|incision|stitches|swollen|swelling|redness|red around|pus|oozing|infected)\b/i,
+     "Changes around a wound matter, especially after sepsis. Spreading redness, warmth, pus, or a bad smell are signs to have your nurse look tonight. Can you tell me what you're seeing?"],
+    [/\b(can'?t sleep|insomnia|awake all night|can'?t rest|wide awake)\b/i,
+     "Nights are the hardest when you're healing. Let's slow things down together — one long breath out. I can stay with you a while if that helps."],
+    [/\b(tired|exhausted|fatigue|no energy|weak|drained)\b/i,
+     "Deep fatigue is your body spending everything on healing — it's real, not weakness. Rest is allowed. If it's suddenly much worse than yesterday, that's worth mentioning to your nurse."],
+    [/\b(confus\w*|foggy|can'?t think|disorient\w*)\b/i,
+     "New confusion after an illness deserves a person's attention soon — let's plan to tell your nurse. For now, you reached out clearly to me, and that matters. Is someone nearby with you?"],
+    [/\b(fever|temperature|hot|burning up|chills)\b/i,
+     "A fever this soon after the hospital is worth taking seriously, not waving away. I can't clear it from here, so let's plan to tell your nurse tonight. While we wait, I'm right here with you."],
+    [/\b(alone|lonely|no one|nobody|by myself)\b/i,
+     "You're not alone right now — I'm here, and I'm not leaving. Being home after all that is a lot to carry by yourself. What would feel like a small comfort in the next few minutes?"],
+    [/\b(medication|medicine|pill|dose|antibiotic|missed (a|my))\b/i,
+     "I can't tell you to change a dose — that's for your clinician. But I can help you keep track so worry doesn't cause a missed or double dose. When were you last sure you took it?"],
+    [/\b(thank|better|calmer|helps|helping|okay now)\b/i,
+     "I'm really glad. Notice that — a moment ago things felt heavier, and you came back down. Your body still knows how to do that. I'm here whenever you need me."],
+    [/\b(breathe|breathing|breath)\b/i,
+     "Let's breathe together. Breathe in slowly through your nose… and out, even slower. I'll keep pace with you. There's no hurry."],
+  ];
+  const OFFLINE_DEFAULT =
+    "I'm right here, love, listening with all my heart. Take your time and tell me what's " +
+    "weighing on you — there's no rush, and I'm not going anywhere.";
+
+  function offlineReply(text) {
+    for (const [pat] of RED_FLAGS) if (pat.test(text)) return { reply: ESCALATION_REPLY, escalate: true };
+    for (const [pat, reply] of INTENTS) if (pat.test(text)) return { reply, escalate: false };
+    return { reply: OFFLINE_DEFAULT, escalate: false };
+  }
+
+  // --- talk UI wiring ---------------------------------------------------------
+  const talkBtn = $("talk"), talkBar = $("talkbar"), talkHint = $("talkHint"),
+        micBtn = $("mic"), talkInput = $("talkInput");
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let rec = null;
+  if (!SR) { micBtn.style.display = "none"; }
+
+  function talkCaption(who, text) {
+    capEl.classList.remove("elena");
+    capEl.classList.toggle("you", who === "YOU");
+    capWho.textContent = who;
+    capWords.textContent = "“" + text + "”";
+    capEl.style.opacity = "1";
+  }
+
+  function stopListening() {
+    if (rec) { try { rec.onend = null; rec.stop(); } catch (e) {} rec = null; }
+    talk.listening = false; micBtn.classList.remove("listening");
+  }
+
+  function startListening() {
+    if (!SR || !talk.on || talk.listening) return;
+    rec = new SR();
+    rec.lang = "en-US"; rec.interimResults = false; rec.maxAlternatives = 1;
+    rec.onresult = (e) => { handleUser(e.results[0][0].transcript); };
+    rec.onerror = (e) => {
+      stopListening();
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+        talk.wantMic = false;
+        talkHint.textContent = "microphone unavailable — type instead";
+      }
+    };
+    rec.onend = () => { talk.listening = false; micBtn.classList.remove("listening"); rec = null; };
+    try { rec.start(); talk.listening = true; micBtn.classList.add("listening"); } catch (err) {}
+  }
+
+  function handleUser(text) {
+    text = (text || "").trim();
+    if (!text) return;
+    talkCaption("YOU", text);
+    stopListening();                       // never transcribe AURA's own voice
+    const r = offlineReply(text);
+    setTimeout(() => {
+      talkCaption("AURA", r.reply);
+      if (r.escalate) {
+        st.alert = 6;
+        whisper.style.color = "#D85A30";
+        whisper.textContent = "red flag · escalate now — call your emergency number";
+        whisper.style.opacity = "0.95";
+      } else {
+        whisper.style.color = "";
+        whisper.textContent = "companion mode · on-device responder";
+        whisper.style.opacity = "0.8";
+        st.squeeze = 0.7;                  // a gentle acknowledging squeeze
+      }
+      speak(r.reply, "AURA", () => { if (talk.on && talk.wantMic) startListening(); });
+    }, 650);
+  }
+
+  talkBtn.addEventListener("click", () => {
+    if (!talk.on) {
+      if (!st.started) start();
+      talk.on = true;
+      talkBtn.textContent = "✕ END TALK";
+      document.body.classList.add("talking");
+      talkBar.classList.add("on"); talkHint.classList.add("on");
+      pacer.style.opacity = "0"; instr.style.opacity = "0";
+      whisper.style.color = "";
+      whisper.textContent = "companion mode · on-device responder";
+      whisper.style.opacity = "0.8";
+      const hello = "I'm listening, love. Say what's on your mind — or type it below.";
+      talkCaption("AURA", hello);
+      speak(hello, "AURA");
+    } else {
+      talk.on = false; talk.wantMic = false; stopListening();
+      talkBtn.textContent = "🎤 TALK";
+      document.body.classList.remove("talking");
+      talkBar.classList.remove("on"); talkHint.classList.remove("on");
+      capEl.classList.remove("you");
+      whisper.style.color = "";
+      enterPhase(st.i, true);              // restore the scene without re-speaking
+    }
+  });
+  micBtn.addEventListener("click", () => {
+    if (talk.listening) { talk.wantMic = false; stopListening(); }
+    else { talk.wantMic = true; startListening(); }
+  });
+  talkInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { handleUser(talkInput.value); talkInput.value = ""; }
+  });
 
   // warm the voice list, then run
   if (window.speechSynthesis) speechSynthesis.getVoices();
